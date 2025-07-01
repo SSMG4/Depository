@@ -18,4 +18,7 @@ Its also super easy to use it as the UI is simple and the tool is not that hard 
 ## Is This A Virus?
 No it is not, if you're not sure, use VirusTotal!
 
+## Other
+The tool supports Github users, but also Github Organizations and the rest!
+
 &copy; 2025 SSMG4 All Rights Reserved.
