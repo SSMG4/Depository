@@ -4,11 +4,19 @@ from git import Repo, GitCommandError
 from tqdm import tqdm
 import shutil
 import sys
+import time
+import webbrowser
 
 OUTPUT_DIR = 'output'
+UPDATE_CHECK_INTERVAL = 3600  # seconds (1 hour)
+UPDATE_CHECK_URL = 'https://api.github.com/repos/SSMG4/Depository/releases/latest'
+REMINDER_FILE = os.path.expanduser('~/.mdepository_update_reminder')
+IGNORE_FILE = os.path.expanduser('~/.mdepository_ignored_version')
+
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
+
 
 def print_banner():
     banner = r"""
@@ -23,6 +31,97 @@ def print_banner():
     """
     print(banner)
 
+
+def get_latest_release():
+    try:
+        resp = requests.get(UPDATE_CHECK_URL, timeout=10)
+        if resp.status_code == 200:
+            return resp.json()
+    except Exception:
+        pass
+    return None
+
+
+def should_remind(latest_version):
+    if os.path.exists(REMINDER_FILE):
+        try:
+            with open(REMINDER_FILE, 'r') as f:
+                status = f.read().strip()
+                if status == 'never':
+                    return False
+        except:
+            pass
+    if os.path.exists(IGNORE_FILE):
+        try:
+            with open(IGNORE_FILE, 'r') as f:
+                ignored_version = f.read().strip()
+                if ignored_version == latest_version:
+                    return False
+        except:
+            pass
+    return True
+
+
+def set_reminder_status(status):
+    try:
+        with open(REMINDER_FILE, 'w') as f:
+            f.write(status)
+    except:
+        pass
+
+
+def ignore_this_version(version):
+    try:
+        with open(IGNORE_FILE, 'w') as f:
+            f.write(version)
+    except:
+        pass
+
+
+def check_for_update(current_version):
+    release = get_latest_release()
+    if not release:
+        return
+
+    latest_version = release.get('tag_name') or release.get('name')
+    if not latest_version or latest_version == current_version:
+        return
+
+    if not should_remind(latest_version):
+        return
+
+    print(f"\n🚨 A New Version Of This Tool Is Available: {latest_version} 🚨\n")
+    changelog = release.get('body') or "No changelog provided."
+    print("Changelog:\n" + changelog + "\n")
+
+    while True:
+        print("Options:")
+        print("  [y]  Update now")
+        print("  [n]  Don't update now")
+        print("  [i]  Ignore this version")
+        print("  [x]  Never remind me about updates again")
+        choice = input("What's your choice?: ").strip().lower()
+
+        if choice == 'y':
+            webbrowser.open(release.get('html_url') or "https://github.com/SSMG4/Depository/releases/latest")
+            print("Opening your browser to the release page... Exiting tool.")
+            sys.exit(0)
+        elif choice == 'n':
+            print("Got it, I’ll remind you later.")
+            set_reminder_status('remind')
+            break
+        elif choice == 'i':
+            print(f"Alright, update {latest_version} will be ignored.")
+            ignore_this_version(latest_version)
+            break
+        elif choice == 'x':
+            print("No more update reminders. Enjoy your peace!")
+            set_reminder_status('never')
+            break
+        else:
+            print("Please choose from (y/n/i/x).")
+
+
 def get_repos(username):
     url = f'https://api.github.com/users/{username}/repos'
     resp = requests.get(url)
@@ -34,6 +133,7 @@ def get_repos(username):
         return None
     return resp.json()
 
+
 def get_branches(username, repo_name):
     url = f'https://api.github.com/repos/{username}/{repo_name}/branches'
     resp = requests.get(url)
@@ -44,6 +144,7 @@ def get_branches(username, repo_name):
         print(f"Error fetching branches: HTTP {resp.status_code}")
         return None
     return resp.json()
+
 
 def download_zip(username, repo_name, branch, dest_folder):
     zip_url = f'https://github.com/{username}/{repo_name}/archive/refs/heads/{branch}.zip'
@@ -66,6 +167,7 @@ def download_zip(username, repo_name, branch, dest_folder):
         print(f"Error during ZIP download: {e}")
         return False
 
+
 def clone_branch(username, repo_name, branch, dest_folder):
     repo_url = f'https://github.com/{username}/{repo_name}.git'
     branch_folder = os.path.join(dest_folder, f'{repo_name}-{branch}')
@@ -83,6 +185,7 @@ def clone_branch(username, repo_name, branch, dest_folder):
         print(f"Unexpected error during git clone: {e}")
         return False
 
+
 def prompt_continue_menu():
     print("\nWhat do you want to do next?")
     print("1. Download more repositories from the same user")
@@ -94,14 +197,24 @@ def prompt_continue_menu():
         choice = input("Enter your choice: ").strip()
     return choice
 
+
 def main_menu():
     clear_screen()
     print_banner()
 
+
 def main():
     current_username = None
+    CURRENT_VERSION = "official-release_v1.1"
+
+    check_for_update(CURRENT_VERSION)
+    last_update_check = time.time()
 
     while True:
+        if time.time() - last_update_check > UPDATE_CHECK_INTERVAL:
+            check_for_update(CURRENT_VERSION)
+            last_update_check = time.time()
+
         main_menu()
         if current_username is None:
             username = input("Enter GitHub username: ").strip()
@@ -119,7 +232,6 @@ def main():
             input("Press Enter to continue...")
             continue
 
-        # Multi-repo selection block
         while True:
             clear_screen()
             print_banner()
@@ -146,9 +258,8 @@ def main():
                 print("No repositories selected. Returning to username input.")
                 current_username = None
                 input("Press Enter to continue...")
-                break  # break to main loop to ask username again
+                break
 
-            # For each selected repo, do branches + download
             for idx in selected_repo_indexes:
                 repo_name = repos[idx - 1]['name']
 
@@ -206,7 +317,6 @@ def main():
                     else:
                         print(f"Failed to download '{repo_name}' [{branch}].")
 
-            # After finishing all repos selected, prompt what to do next
             while True:
                 choice = prompt_continue_menu()
                 if choice == '1':
@@ -220,7 +330,8 @@ def main():
                     sys.exit(0)
 
             if choice in ('1', '2'):
-                break  # break to main while loop to continue
+                break
+
 
 if __name__ == "__main__":
     main()
