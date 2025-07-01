@@ -13,7 +13,7 @@ MDepository is the version of the tool that lets you download multiple repositor
 Its super easy to set it up, just unzip the version, launch setup.bat to install the dependencies required if you dont have them and launch the .py file!
 
 ## How Do I Use It?
-Its also super easy to use it as the UI is simple and the tool is not that hard to use
+Its also super easy to use it as the UI is simple and the tool is not that hard to use, just download it, keep the py file in the folder it came from (because itll generate more stuff) and run it!
 
 ## Is This A Virus?
 No it is not, if you're not sure, use VirusTotal!
