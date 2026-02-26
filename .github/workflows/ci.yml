@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  lint-and-check:
+    name: Lint & syntax check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install linter
+        run: pip install ruff
+
+      - name: Run Ruff (lint + style)
+        run: ruff check .
+
+  import-check:
+    name: Import check — Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Syntax check — all Python files
+        run: |
+          python -m py_compile depository_core.py
+          python -m py_compile Depository.py
+          python -m py_compile MDepository.py
+          python -m py_compile setup.py
+
+      - name: Import check — core module
+        run: python -c "import depository_core; print('depository_core OK')"
+
+      - name: Verify version string is present
+        run: >
+          python -c "
+          from depository_core import CURRENT_VERSION;
+          assert CURRENT_VERSION, 'CURRENT_VERSION is empty';
+          print(f'Version: {CURRENT_VERSION}')
+          "
