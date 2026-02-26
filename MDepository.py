@@ -93,7 +93,7 @@ def build_download_jobs(username: str, selected_repos: list[dict],
         print_banner()
         section(f"Repo {i} of {len(selected_repos)}: {repo_name}")
 
-        print(f"  Fetching branches...")
+        print("  Fetching branches...")
         branches = get_branches(username, repo_name)
         if branches is None or not branches:
             print(f"  Could not fetch branches for '{repo_name}'. Skipping.")
