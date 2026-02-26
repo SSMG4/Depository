@@ -59,4 +59,5 @@ jobs:
         run: python -c "import depository_core; print('depository_core OK')"
 
       - name: Verify version string is present
-        run: python -c "from depository_core import CURRENT_VERSION; assert CURRENT_VERSION, 'CURRENT_VERSION is empty'; print('Version: ' + CURRENT_VERSION)"
+        run: |
+          python -c "from depository_core import CURRENT_VERSION; assert CURRENT_VERSION, 'CURRENT_VERSION is empty'; print('Version: ' + CURRENT_VERSION)"
